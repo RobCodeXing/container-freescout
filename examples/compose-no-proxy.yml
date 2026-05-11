@@ -1,6 +1,6 @@
 services:
   freescout-app:
-    image: docker.io/tiredofit/freescout:1.17.999
+    image: docker.io/nfrastack/freescout:2.0
     container_name: freescout-app
     ports:
       - 80:80
@@ -13,21 +13,44 @@ services:
     #- ./modules:/www/html/Modules
     - ./logs/:/www/logs
     environment:
-    - CONTAINER_NAME=freescout-app
+      - CONTAINER_NAME=freescout-app
+      - TIMEZONE=America/Vancouver
 
-    - DB_HOST=freescout-db
-    - DB_NAME=freescout
-    - DB_USER=freescout
-    - DB_PASS=freescout
+      - DB_TYPE=mariadb
+      - DB_HOST=freescout-db
+      - DB_PORT=3306
+      - DB_NAME=freescout
+      - DB_USER=freescout
+      - DB_PASS=freescoutpass
+      # - DB_SSL=TRUE
+      # - FREESCOUT_DB_PGSQL_SSL_MODE=require    # only when DB_TYPE=pgsql
 
-    - SITE_URL=http://freescout.example.com
-    - ADMIN_EMAIL=admin@admin.com
-    - ADMIN_PASS=freescout
-    - ENABLE_SSL_PROXY=FALSE
-    - DISPLAY_ERRORS=FALSE
-    - TIMEZONE=America/Vancouver
+      - ADMIN_EMAIL=admin@example.com   # Only required for fresh DB
+      - ADMIN_FIRST_NAME=FreeScout      #
+      - ADMIN_LAST_NAME=Admin           #
+      - ADMIN_PASS=freescout            #
 
-    - FREESCOUT_VERSION=1.8.219
+      - SITE_URL=https://freescout.example.com # Required
+
+      # All other FreeScout `.env` config goes through FREESCOUT_ prefix
+      #
+      # Use these values to remove an in place config value
+      #   FREESCOUT_FOO=unset    FREESCOUT_FOO=null    FREESCOUT_FOO=
+      #
+      # Docker secrets: any FREESCOUT_<KEY>_FILE=/run/secrets/x is resolved into FREESCOUT_<KEY>=<contents> before passthrough.
+      # - FREESCOUT_APP_SINCE_WITHOUT_QUOTES_ON_FETCHING=false
+      # - FREESCOUT_APP_DEBUG=false
+      - FREESCOUT_APP_LOCALE=en
+      - FREESCOUT_APP_TIMEZONE=America/Vancouver
+
+      - FREESCOUT_MAIL_DRIVER=smtp
+      - FREESCOUT_MAIL_HOST=postfix-relay
+      - FREESCOUT_MAIL_PORT=25
+      - FREESCOUT_MAIL_FROM_ADDRESS=freescout@example.com
+      - FREESCOUT_MAIL_FROM_NAME=FreeScout
+      # - FREESCOUT_MAIL_USERNAME=...
+      # - FREESCOUT_MAIL_PASSWORD_FILE=/run/secrets/smtp_password
+      # - FREESCOUT_MAIL_ENCRYPTION=tls
     restart: always
 
   freescout-db:
@@ -39,9 +62,7 @@ services:
       - ROOT_PASS=password
       - DB_NAME=freescout
       - DB_USER=freescout
-      - DB_PASS=freescout
-
-      - CONTAINER_NAME=freescout-db
+      - DB_PASS=freescoutpass
     restart: always
 
   freescout-db-backup:

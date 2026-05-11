@@ -1,26 +1,57 @@
 services:
-
   freescout-app:
-    image: docker.io/tiredofit/freescout:1.17:999
+    image: docker.io/nfrastack/freescout:latest
     container_name: freescout-app
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.freescout.rule=Host(`freescout.example.com`)
+      - traefik.http.services.freescout.loadbalancer.server.port=80
+    ports:
+      - 8000:80
     volumes:
       - ./data:/data
-      - ./logs/:/www/logs
+      - ./logs:/logs
     environment:
-      - TIMEZONE=America/Vancouver
       - CONTAINER_NAME=freescout-app
+      - TIMEZONE=America/Vancouver
+      - DEBUG_MODE=FALSE
 
+      - DB_TYPE=mariadb
       - DB_HOST=freescout-db
+      - DB_PORT=3306
       - DB_NAME=freescout
       - DB_USER=freescout
-      - DB_PASS=freescout
+      - DB_PASS=freescoutpass
+      # - DB_SSL=TRUE
+      # - FREESCOUT_DB_PGSQL_SSL_MODE=require    # only when DB_TYPE=pgsql
 
-      - SITE_URL=https://freescout.example.com
+      - ADMIN_EMAIL=admin@example.com   # Only required for fresh DB
+      - ADMIN_FIRST_NAME=FreeScout      #
+      - ADMIN_LAST_NAME=Admin           #
+      - ADMIN_PASS=freescout            #
 
-      - ADMIN_EMAIL=admin@admin.com
-      - ADMIN_PASS=freescout
+      - APP_URL=https://freescout.example.com # Required!
 
-      - FREESCOUT_VERSION=1.8.219
+      # All other FreeScout `.env` config goes through FREESCOUT_ prefix
+      #
+      # Use these values to remove an in place config value
+      #   FREESCOUT_FOO=unset    FREESCOUT_FOO=null    FREESCOUT_FOO=
+      #
+      # Docker secrets: any FREESCOUT_<KEY>_FILE=/run/secrets/x is resolved into FREESCOUT_<KEY>=<contents> before passthrough.
+
+      # - FREESCOUT_APP_SINCE_WITHOUT_QUOTES_ON_FETCHING=false
+      # - FREESCOUT_APP_DEBUG=false
+      - FREESCOUT_APP_LOCALE=en
+      - FREESCOUT_APP_TIMEZONE=America/Vancouver
+
+      - FREESCOUT_MAIL_DRIVER=smtp
+      - FREESCOUT_MAIL_HOST=postfix-relay
+      - FREESCOUT_MAIL_PORT=25
+      - FREESCOUT_MAIL_FROM_ADDRESS=freescout@example.com
+      - FREESCOUT_MAIL_FROM_NAME=FreeScout
+      # - FREESCOUT_MAIL_USERNAME=...
+      # - FREESCOUT_MAIL_PASSWORD_FILE=/run/secrets/smtp_password
+      # - FREESCOUT_MAIL_ENCRYPTION=tls
     networks:
       - proxy
       - services
@@ -35,28 +66,25 @@ services:
       - TIMEZONE=America/Vancouver
       - CONTAINER_NAME=freescout-db
 
-      - ROOT_PASS=password
+      - ROOT_PASS=rootpassword
       - DB_NAME=freescout
       - DB_USER=freescout
-      - DB_PASS=freescout
+      - DB_PASS=freescoutpass
     networks:
       - services
     restart: always
 
   freescout-db-backup:
-    container_name: freescout-db-backup
     image: docker.io/tiredofit/db-backup
+    container_name: freescout-db-backup
     volumes:
       - ./dbbackup:/backup
     environment:
-      - TIMEZONE=America/Vancouver
-      - CONTAINER_NAME=freescout-db-backup
-
       - DB01_HOST=freescout-db
       - DB01_TYPE=mariadb
       - DB01_NAME=freescout
       - DB01_USER=freescout
-      - DB01_PASS=freescout
+      - DB01_PASS=freescoutpass
       - DB01_BACKUP_INTERVAL=1440
       - DB01_BACKUP_BEGIN=0000
       - DB01_CLEANUP_TIME=8640
@@ -64,11 +92,8 @@ services:
       - services
     restart: always
 
-
 networks:
   proxy:
     external: true
   services:
     external: true
-
-

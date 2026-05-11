@@ -1,0 +1,26 @@
+#!/command/with-contenv bash
+# SPDX-FileCopyrightText: © 2026 Nfrastack <code@nfrastack.com>
+#
+# SPDX-License-Identifier: MIT
+
+source /container/base/functions/container/init
+prepare_service 41-freescout-scheduler
+SERVICE_NAME="freescout-scheduler"
+
+check_container_initialized
+check_service_initialized init 40-freescout
+liftoff
+
+if var_false "${ENABLE_FREESCOUT_SCHEDULER}"; then
+    s6-svc -d /var/run/s6/legacy-services/41-freescout-scheduler
+    exit 0
+fi
+
+print_debug "FreeScout scheduler online - dispatching schedule:run every 60 seconds"
+
+while true; do
+    silent sudo -u "${NGINX_USER}" \
+                    TZ="${TIMEZONE}" \
+                        php "${NGINX_WEBROOT%/}"/artisan schedule:run
+    sleep 60
+done

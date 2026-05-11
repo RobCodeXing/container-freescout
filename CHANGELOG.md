@@ -1,12 +1,20 @@
-## 1.17.999 2026-05-09 <dave at tiredofit dot ca>
-
-This is the final tiredofit/freescout image and all future images will come from the nfrastack/freescout namespace
-Please read the README.md inside the root of the container and the EOL notice when starting image to see how you can continue to use this image with new FreeScout releases
-See you in the new namespace
+## 2.0.0 2026-05-11 <code at nfrastack dot com>
 
    ### Added
-      - Add FREESCOUT_VERSION capability to upgrade to newer versions after this image is EOL
-      - Allow upgrading within the Admin panel if user is exposing /www/html as a volume
+      - Changed Base Image to nfrastack/laravel
+      - Most variables need to be prefixed with FREESCOUT_ to be usable - see README
+
+
+# 1.17.999 2026-05-09 <dave at tiredofit dot ca>
+
+This is the final tiredofit/freescout image and all future images will come from the nfrastack/freescout namespace
+Please read the README.md inside the root of the container and the EOL notice when starting image to see how you can continue to use this image with new
+FreeScout releases
+See you in the new namespace
+
+    ### Added
+       - Add FREESCOUT_VERSION capability to upgrade to newer versions after this image is EOL
+       - Allow upgrading within the Admin panel if user is exposing /www/html as a volume
 
 
 ## 1.17.159 2026-05-08 <dave at tiredofit dot ca>
@@ -2278,7 +2286,7 @@ It is recomended all users upgrade immediately to this release to fix long stand
 
    ### Added
       - Refinements to Persistent Storage specifically Modules and Configuration Files
-   
+
    ### Changed
       - Considerable cleanup related to storage
       - Automatically install Modules and clear cache routines

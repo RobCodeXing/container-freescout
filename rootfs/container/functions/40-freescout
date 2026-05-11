@@ -1,0 +1,144 @@
+# SPDX-FileCopyrightText: © 2026 Nfrastack <code@nfrastack.com>
+#
+# SPDX-License-Identifier: MIT
+
+freescout_compare_version() {
+    local _image_version
+    local _current_version
+    local _version_file
+    local _timestamp
+    local _data_version_file
+
+    _image_version=$(grep -o "ADD: FreeScout .* |" "/container/build/${IMAGE_NAME//\//_}/build.log" | awk '{print $3}')
+    _version_file="${NGINX_WEBROOT%/}/${VERSION_FILE}"
+    _data_version_file="${DATA_PATH%/}/${VERSION_FILE}"
+    _timestamp=$(TZ=${TIMEZONE} date +'%Y-%m-%d %H:%M:%S %Z')
+
+    if [ ! -f "${_version_file}" ] && [ ! -f "${_data_version_file}" ]; then
+        echo "${_image_version} first installed on ${_timestamp}" \
+            | write_file "${NGINX_USER}":"${NGINX_GROUP}"@"${_version_file}":660
+        return
+    fi
+
+    if var_false "${ENABLE_AUTO_UPDATE}"; then
+        return
+    fi
+
+    if [ -f "${_version_file}" ]; then
+        _current_version=$(head -n 1 "${_version_file}" | awk '{print $1}')
+    elif [ -f "${_data_version_file}" ]; then
+        _current_version=$(head -n 1 "${_data_version_file}" | awk '{print $1}')
+    fi
+
+    if [ "${_image_version}" = "${_current_version}" ]; then
+        return
+    fi
+
+    print_warn "Detected in-place FreeScout ${_current_version} - upgrading to ${_image_version}"
+    cp -aR "${LARAVEL_INSTALL_DATA_PATH%/}"/install/. "${NGINX_WEBROOT%/}/"
+    chown -R "${NGINX_USER}":"${NGINX_GROUP}" "${NGINX_WEBROOT}"
+
+    freescout_upgrade_legacy "${_current_version}"
+
+    cd "${NGINX_WEBROOT}"
+    silent sudo -u "${NGINX_USER}" php "${NGINX_WEBROOT%/}"/artisan migrate --no-interaction --force
+    silent sudo -u "${NGINX_USER}" php "${NGINX_WEBROOT%/}"/artisan freescout:after-app-update
+
+    sed -i --follow-symlinks "1i ${_image_version} upgraded on ${_timestamp}" "${_version_file}"
+}
+
+freescout_upgrade_legacy() {
+    # Rolls forward state that historic FreeScout releases left behind. Only runs
+    # during an in-place version bump; on a fresh install nothing here applies.
+    local _from="${1:-}"
+}
+
+freescout_bootstrap_volatile_data() {
+    # FreeScout-specific persistent paths on top of laravel_volatile_setup.
+    # Storage/log/config redirection are owned by the laravel parent.
+    if var_false "${ENABLE_STORAGE_REDIRECTION}"; then
+        return
+    fi
+
+    create_folder "${DATA_PATH}" "${NGINX_USER}":"${NGINX_GROUP}" 750
+
+    # /data/Modules - persistent module storage
+    if [ ! -d "${MODULES_PATH%/}" ]; then
+        if [ -d "${NGINX_WEBROOT%/}"/Modules ]; then
+            cp -R "${NGINX_WEBROOT%/}"/Modules "${MODULES_PATH%/}"
+        else
+            create_folder "${MODULES_PATH}" "${NGINX_USER}":"${NGINX_GROUP}" 775
+        fi
+    fi
+    if [ ! -L "${NGINX_WEBROOT%/}"/Modules ]; then
+        rm -rf "${NGINX_WEBROOT%/}"/Modules
+        ln -s "${MODULES_PATH%/}" "${NGINX_WEBROOT%/}"/Modules
+    fi
+    chown -R "${NGINX_USER}":"${NGINX_GROUP}" "${MODULES_PATH%/}"
+
+    if [ -f "${NGINX_WEBROOT%/}"/"${VERSION_FILE}" ] && [ ! -L "${NGINX_WEBROOT%/}"/"${VERSION_FILE}" ]; then
+        if [ ! -e "${DATA_PATH%/}/${VERSION_FILE}" ]; then
+            mv "${NGINX_WEBROOT%/}"/"${VERSION_FILE}" "${DATA_PATH%/}/${VERSION_FILE}"
+        fi
+    fi
+    if [ -e "${DATA_PATH%/}/${VERSION_FILE}" ] && [ ! -L "${NGINX_WEBROOT%/}"/"${VERSION_FILE}" ]; then
+        rm -f "${NGINX_WEBROOT%/}"/"${VERSION_FILE}"
+        ln -s "${DATA_PATH%/}/${VERSION_FILE}" "${NGINX_WEBROOT%/}"/"${VERSION_FILE}"
+        chown -h "${NGINX_USER}":"${NGINX_GROUP}" "${NGINX_WEBROOT%/}"/"${VERSION_FILE}"
+    fi
+}
+
+freescout_configure_app() {
+    if [ -z "${APP_URL}" ] && [ -n "${SITE_URL}" ]; then
+        APP_URL="${SITE_URL}"
+    fi
+    sanity_var APP_URL "APP_URL or SITE_URL (full external URL of the site eg https://freescout.example.com)"
+    laravel_env_update APP_URL "${APP_URL}"
+
+    case "${APP_URL,,}" in
+        http://*)  laravel_env_update SESSION_SECURE_COOKIE false ;;
+        https://*) laravel_env_update SESSION_SECURE_COOKIE true ;;
+    esac
+
+    local _app_host
+    _app_host=$(echo "${APP_URL}" | sed -nE 's|^https?://([^/:]+).*|\1|p')
+    if [ -n "${_app_host}" ]; then
+        laravel_env_update APP_TRUSTED_HOSTS "${_app_host},localhost,127.0.0.1"
+    else
+        laravel_env_update APP_TRUSTED_HOSTS "localhost,127.0.0.1"
+    fi
+
+    laravel_env_update APP_DISABLE_UPDATING true
+}
+
+freescout_install_modules() {
+    if [ ! -d "${NGINX_WEBROOT%/}"/Modules ]; then return; fi
+    if dir_empty "${NGINX_WEBROOT%/}"/Modules ; then return; fi
+
+    print_notice "Registering FreeScout modules"
+    cd "${NGINX_WEBROOT}"
+    silent sudo -u "${NGINX_USER}" php "${NGINX_WEBROOT%/}"/artisan \
+                                                                    freescout:module-install \
+                                                                        --no-interaction \
+                                                                        --force
+}
+
+freescout_create_admin() {
+    transform_var file \
+                        ADMIN_EMAIL \
+                        ADMIN_FIRST_NAME \
+                        ADMIN_LAST_NAME \
+                        ADMIN_PASS
+
+    sanity_var ADMIN_EMAIL "Admin Email Address"
+    sanity_var ADMIN_PASS  "Admin Password"
+
+    print_notice "Creating FreeScout administrative user '${ADMIN_EMAIL}'"
+    silent sudo -u "${NGINX_USER}" php "${NGINX_WEBROOT%/}"/artisan \
+                                                                -n freescout:create-user \
+                                                                    --role=admin \
+                                                                    --firstName="${ADMIN_FIRST_NAME}" \
+                                                                    --lastName="${ADMIN_LAST_NAME}" \
+                                                                    --email="${ADMIN_EMAIL}" \
+                                                                    --password="${ADMIN_PASS}"
+}

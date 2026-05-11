@@ -1,183 +1,191 @@
-# github.com/tiredofit/docker-freescout
-
-[![GitHub release](https://img.shields.io/github/v/tag/tiredofit/docker-freescout?style=flat-square)](https://github.com/tiredofit/docker-freescout/releases/latest)
-[![Build Status](https://img.shields.io/github/actions/workflow/status/tiredofit/docker-freescout/main.yml?branch=main&style=flat-square)](https://github.com/tiredofit/docker-freescout/actions)
-[![Docker Stars](https://img.shields.io/docker/stars/tiredofit/freescout.svg?style=flat-square&logo=docker)](https://hub.docker.com/r/tiredofit/freescout/)
-[![Docker Pulls](https://img.shields.io/docker/pulls/tiredofit/freescout.svg?style=flat-square&logo=docker)](https://hub.docker.com/r/tiredofit/freescout/)
-[![Become a sponsor](https://img.shields.io/badge/sponsor-tiredofit-181717.svg?logo=github&style=flat-square)](https://github.com/sponsors/tiredofit)
-[![Paypal Donate](https://img.shields.io/badge/donate-paypal-00457c.svg?logo=paypal&style=flat-square)](https://www.paypal.me/tiredofit)
-
-* * *
-
-## End of Life Notice - May 9, 2026
-
-**This image (`tiredofit/freescout`) is no longer actively maintained and will not receive new features or fixes.**
-
-A successor image is available and is where ongoing development continues:
-
-* Repository: <https://github.com/nfrastack/container-freescout>
-
-* Docker Hub: <https://hub.docker.com/r/nfrastack/freescout>
-* GHCR: <https://github.com/nfrastack/container-freescout/pkgs/container/container-freescout>
-
-Same maintainer, differnet namespace.
-
-nfrastack/container-freescout 2.x introduces significant environment variable changes plan to revise your configuration file compose file when migrating.
-
-This final image contains FreeScout 1.8.219
-
-Olive branches for staying on THIS image:
-
-  - Set FREESCOUT_VERSION when starting image to a newer release - the container will re-clone, run composer install, and rebuild assets on startup. This will take a few minutes each container start - This is the recommended approach.
-
-  OR
-
-  - Set APP_DISABLE_UPDATING=FALSE to enable FreeScout's in-app updater, this will only work if you are exposing /www/html as a volume. Lots of opportunities for breakage can then upgrade from the FreeScout UI.
-
-  Both paths will eventually break on upstream PHP/extension/schema changes that this image cannot satisfy. Treat them as a bridge, not a permanent solution.
-
-  See you in the nfrastack - https://nfrastack.com
-
-* * *
+# nfrastack/container-freescout
 
 ## About
 
-This will build a Docker Image for [FreeScout](https://freescout.net/) - An open source Helpscout / Zendesk alternative.
-
-* Automatically installs and sets up installation upon first start
+This repository will build a container image for running [FreeScout](https://freescout.net/) - an open source [Help Scout](https://www.helpscout.com/) / [Zendesk](https://www.zendesk.com/) alternative for shared inboxes, helpdesk, and ticketing.
 
 ## Maintainer
 
-* [Dave Conroy](https://github.com/tiredofit)
+* [Nfrastack](https://www.nfrastack.com)
 
 ## Table of Contents
 
 * [About](#about)
 * [Maintainer](#maintainer)
 * [Table of Contents](#table-of-contents)
-* [Prerequisites and Assumptions](#prerequisites-and-assumptions)
 * [Installation](#installation)
-  * [Build from Source](#build-from-source)
   * [Prebuilt Images](#prebuilt-images)
-* [Configuration](#configuration)
   * [Quick Start](#quick-start)
   * [Persistent Storage](#persistent-storage)
+* [Configuration](#configuration)
   * [Environment Variables](#environment-variables)
     * [Base Images used](#base-images-used)
+    * [Core Configuration](#core-configuration)
+    * [Database](#database)
+    * [Application](#application)
+    * [Setting Arbitrary FreeScout Keys](#setting-arbitrary-freescout-keys-via-laravel_env_prefix)
+    * [Scheduler](#scheduler)
   * [Networking](#networking)
+* [Upgrading from 1.x](#upgrading-from-1x)
 * [Maintenance](#maintenance)
   * [Shell Access](#shell-access)
-* [Support](#support)
-  * [Usage](#usage)
-  * [Bugfixes](#bugfixes)
-  * [Feature Requests](#feature-requests)
-  * [Updates](#updates)
+* [Support & Maintenance](#support--maintenance)
 * [License](#license)
 * [References](#references)
 
-## Prerequisites and Assumptions
-
-* Assumes you are using some sort of SSL terminating reverse proxy such as:
-  * [Traefik](https://github.com/nfrastack/container-traefik)
-  * [Nginx](https://github.com/jc21/nginx-proxy-manager)
-  * [Caddy](https://github.com/caddyserver/caddy)
-* Requires access to a MySQL/MariaDB or Postgres Server
-
 ## Installation
-
-### Build from Source
-
-Clone this repository and build the image with `docker build -t (imagename) .`
 
 ### Prebuilt Images
 
-Builds of the image are available on [Docker Hub](https://hub.docker.com/r/tiredofit/freescout)
+Builds are available on the [Github Container Registry](https://github.com/nfrastack/container-freescout/pkgs/container/container-freescout) and [Docker Hub](https://hub.docker.com/r/nfrastack/freescout):
 
-```bash
-docker pull docker.io/tiredofit/freescout:(imagetag)
+```text
+ghcr.io/nfrastack/container-freescout:(image_tag)
+docker.io/nfrastack/freescout:(image_tag)
 ```
 
-Builds of the image are also available on the [Github Container Registry](https://github.com/tiredofit/docker-freescout/pkgs/container/docker-freescout)
+Image tag syntax is:
 
-```bash
-docker pull ghcr.io/tiredofit/docker-freescout:(imagetag)
-```
+`<image>:<optional tag>-<optional phpversion>`
 
-The following image tags are available along with their tagged release based on what's written in the [Changelog](CHANGELOG.md):
+Example:
 
-| Container OS | Tag       |
-| ------------ | --------- |
-| Alpine       | `:latest` |
+`docker.io/nfrastack/freescout:latest` or `ghcr.io/nfrastack/container-freescout:2.0-php84`
 
-## Configuration
+* `latest` will be the most recent commit on the latest PHP version
+* An optional `tag` may exist that matches the [CHANGELOG](CHANGELOG.md) - these are the safest
+
+
+| PHP version | Tag                      |
+| ----------- | ------------------------ |
+| 8.5.x       | `:<imageversion>-php8.5` |
+| 8.4.x       | `:<imageversion>-php8.4` |
+|             | `:latest`                |
+| 8.3.x       | `:<imageversion>-php8.3` |
+
+Have a look at the container registries and see what tags are available.
+#### Multi-Architecture Support
+
+Images are built for `amd64` by default, with optional support for `arm64` and other architectures.
 
 ### Quick Start
 
-* The quickest way to get started is using [docker-compose](https://docs.docker.com/compose/). See the examples folder for a working [compose.yml](examples/compose.yml) that can be modified for development or production use.
-
-* Set various [environment variables](#environment-variables) to understand the capabilities of this image.
+* The quickest way to get started is using [docker-compose](https://docs.docker.com/compose/). See [examples/compose.yml](examples/compose.yml) for a working stack you can tailor to your environment.
 * Map [persistent storage](#persistent-storage) for access to configuration and data files for backup.
-* Make [networking ports](#networking) available for public access if necessary
+* Set [environment variables](#environment-variables) to control container behavior.
 
-**The first boot can take from 2 minutes - 5 minutes depending on your CPU to setup the proper schemas.**
-
-* Login to the web server and enter in your admin email address, admin password and start configuring the system!
+**The first boot can take 2-5 minutes depending on your CPU as the schema is created and assets are warmed.**
 
 ### Persistent Storage
 
-The following directories are used for configuration and can be mapped for persistent storage.
+The following directories should be mapped for persistent storage. The `/data` mount is recommended - it covers config, sessions, cache, modules, and the version marker in one place. Mounting `/www/html` instead is supported when you want the FreeScout source tree exposed for inspection or self-update.
 
-| Directory                | Description                                                                                                              |
-| ------------------------ | ------------------------------------------------------------------------------------------------------------------------ |
-| `/www/logs`              | Nginx and PHP Log files                                                                                                  |
-| `/assets/custom`         | (Optional) Copy source code over existing source code in /www/html upon container start. Use exact file/folder structure |
-| `/assets/custom-scripts` | (Optional) If you want to execute custom scripting, place scripts here with extension `.sh`                              |
-| `/assets/modules`        | (Optional) If you want to add additional modules outside of the source tree, add them here                               |
-| `/www/html`              | (Optional) If you want to expose the Freescout sourcecode and enable Self Updating, expose this volume                   |
-| *OR*                     |                                                                                                                          |
-| `/data`                  | Hold onto your persistent sessions and cache between container restarts                                                  |
+| Directory   | Description                                                                     |
+| ----------- | ------------------------------------------------------------------------------- |
+| `/logs`     | Nginx and PHP log files                                                         |
+| `/www/html` | (Optional) Expose the FreeScout source tree to the host                         |
+| **OR**      |                                                                                 |
+| `/data`     | Persistent state - sessions, cache, uploads, `Modules/`, configuration          |
+
+## Configuration
 
 ### Environment Variables
 
-#### Base Images used
-
-This image relies on an [Alpine Linux](https://hub.docker.com/r/tiredofit/alpine) or [Debian Linux](https://hub.docker.com/r/tiredofit/debian) base image that relies on an [init system](https://github.com/just-containers/s6-overlay) for added capabilities. Outgoing SMTP capabilities are handlded via `msmtp`. Individual container performance monitoring is performed by [zabbix-agent](https://zabbix.org). Additional tools include: `bash`,`curl`,`less`,`logrotate`,`nano`.
-
+This image relies on a customized base image in order to work.
 Be sure to view the following repositories to understand all the customizable options:
 
-| Image                                                         | Description                            |
-| ------------------------------------------------------------- | -------------------------------------- |
-| [OS Base](https://github.com/tiredofit/docker-alpine/)        | Customized Image based on Alpine Linux |
-| [Nginx](https://github.com/tiredofit/docker-nginx/)           | Nginx webserver                        |
-| [PHP-FPM](https://github.com/tiredofit/docker-nginx-php-fpm/) | PHP Interpreter                        |
+#### Base Images used
 
-| Parameter                              | Description                                                                                     | Default     | `_FILE` |
-| -------------------------------------- | ----------------------------------------------------------------------------------------------- | ----------- | ------- |
-| `FREESCOUT_VERSION`                    | Set to the version you wish to override install for the final EOL Image                         |             |         |
-| `ADMIN_EMAIL`                          | Administrator Email Address - Needed for logging in                                             |             | x       |
-| `ADMIN_FIRST_NAME`                     | Admin user First Name                                                                           | `Admin`     | x       |
-| `ADMIN_LAST_NAME`                      | Admin user First Name                                                                           | `User`      | x       |
-| `ADMIN_PASS`                           | Administrator Password - Needed for Logging in                                                  |             | x       |
-| `APPLICATION_NAME`                     | Change default application name - Default `Freescout`                                           | `freescout` |         |
-| `APP_DISABLE_UPDATING`                 | Disable FreeScout's built-in in-app updater. Set to `FALSE` to let users upgrade from the UI    | `TRUE`      |         |
-| `APP_PROXY`                            | Allow Application to use a proxy for fetching modules                                           |             |         |
-| `APP_TRUSTED_PROXIES`                  | Comma separated list of trusted proxies, i.e. `192.168.1.1,192.168.1.2,192.168.1.3`             |             |         |
-| `APP_SINCE_WITHOUT_QUOTES_ON_FETCHING` | Allow to disable quotes around SINCE date in IMAP search                                        | `FALSE`     |         |
-| `APP_X_FRAME_OPTIONS`                  | Allow to embed via iframes `TRUE` `FALSE` `DENY` `ALLOW FROM example.org`                       | `TRUE`      |         |
-| `DB_TYPE`                              | Type of the Database. Currently supported are `mysql` and `pgsql`                               | `mysql`     |         |
-| `DB_PGSQL_SSL_MODE`                    | Postgresql TLS Mode                                                                             | `prefer`    |         |
-| `DB_HOST`                              | Host or container name of the Databse Server e.g. `freescout-db`                                |             | x       |
-| `DB_PORT`                              | Database Port e.g.`3306` for mysql, `5432` for postgres                                         | `3306`      | x       |
-| `DB_NAME`                              | Database name e.g. `freescout`                                                                  |             | x       |
-| `DB_USER`                              | Username for above Database e.g. `freescout`                                                    |             | x       |
-| `DB_PASS`                              | Password for above Database e.g. `password`                                                     |             | x       |
-| `DB_SSL`                               | Used to enable SSL support for MySQL and MariaDB databases                                      | `FALSE`     |         |
-| `DISPLAY_ERRORS`                       | Display Errors on Website                                                                       | `FALSE`     |         |
-| `ENABLE_AUTO_UPDATE`                   | If coming from an earlier version of image, automatically update it to latest Freescout release | `TRUE`      |         |
-| `FREESCOUT_VERSION`                    | Override baked FreeScout version - re-clones+composer+build on startup (slow cold start)        |             |         |
-| `SETUP_TYPE`                           | Automatically edit configuration after first bootup `AUTO` or `MANUAL`                          | `AUTO`      |         |
-| `SITE_URL`                             | The url your site listens on example `https://freescout.example.com`                            |             |         |
-| `SKIP_STORAGE_PERMISSIONS`             | Skip applying permission to storage path, e.g. for instances involving large storage paths      | `FALSE`     |         |
+| Image                                                                 | Description         |
+| --------------------------------------------------------------------- | ------------------- |
+| [OS Base](https://github.com/nfrastack/container-base/)               | Base image          |
+| [Nginx](https://github.com/nfrastack/container-nginx/)                | Nginx webserver     |
+| [Nginx PHP-FPM](https://github.com/nfrastack/container-nginx-php-fpm) | PHP-FPM interpreter |
+| [Laravel](https://github.com/nfrastack/container-laravel)             | Laravel runtime     |
+
+
+Below is the complete list of available options that can be used to customize your installation.
+
+* Variables showing an 'x' under the `Advanced` column can only be set if the containers advanced functionality is enabled.
+
+
+#### Core Configuration
+
+| Parameter                    | Description                                                                                                          | Default                | `_FILE` |
+| ---------------------------- | -------------------------------------------------------------------------------------------------------------------- | ---------------------- | ------- |
+| `SETUP_TYPE`                 | `AUTO` writes config, runs migrations, creates the bootstrap admin. `MANUAL` does nothing                            | `AUTO`                 |         |
+| `ADMIN_EMAIL`                | Email of the bootstrap admin user (created on a fresh DB only)                                                       | `admin@example.com`    | x       |
+| `ADMIN_FIRST_NAME`           | First name of the bootstrap admin                                                                                    | `Admin`                | x       |
+| `ADMIN_LAST_NAME`            | Last name of the bootstrap admin                                                                                     | `User`                 | x       |
+| `ADMIN_PASS`                 | Password of the bootstrap admin                                                                                      | `freescout`            | x       |
+| `ENABLE_AUTO_UPDATE`         | Auto-upgrade FreeScout source on container restart when image version differs from `${DATA_PATH}/.freescout-version` | `TRUE`                 |         |
+| `DATA_PATH`                  | Base persistent-data path (sessions, cache, modules, version marker live under here)                                 | `/data/`                |         |
+| `MODULES_PATH`               | Persistent storage for FreeScout `Modules/` directory                                                                | `${DATA_PATH}/Modules` |         |
+| `ENABLE_FREESCOUT_SCHEDULER` | Run `php artisan schedule:run` once per minute. Required for mail fetch / digest / queue                             | `TRUE`                 |         |
+
+#### Database
+
+| Parameter | Description                                                  | Default | `_FILE` |
+| --------- | ------------------------------------------------------------ | ------- | ------- |
+| `DB_TYPE` | Database driver: `mysql`, `mariadb`, or `pgsql` / `postgres` | `mysql` |         |
+| `DB_HOST` | Hostname or container name of the database server            |         | x       |
+| `DB_PORT` | Database port                                                | `3306`  | x       |
+| `DB_NAME` | Database name (written to `.env` as `DB_DATABASE`)           |         | x       |
+| `DB_USER` | Database username (written to `.env` as `DB_USERNAME`)       |         | x       |
+| `DB_PASS` | Database password (written to `.env` as `DB_PASSWORD`)       |         | x       |
+| `DB_SSL`  | Enable SSL connectivity (`TRUE` / `FALSE`) for MySQL/MariaDB | `FALSE` |         |
+
+#### Application
+
+| Parameter  | Description                                                                     | Default | Alias      | `_FILE` |
+| ---------- | ------------------------------------------------------------------------------- | ------- | ---------- | ------- |
+| `APP_URL`  | Full external URL of the site (e.g. `https://freescout.example.com`). Required. |         | `SITE_URL` |         |
+| `SITE_URL` | Legacy alias for `APP_URL`        |         |            |         |
+
+#### Setting FreeScout configuration
+
+FreeScout ships ~80 configuration keys (look inside the running container at `/www/html/.env.example` for a sample, or read the [upstream wiki](https://github.com/freescout-helpdesk/freescout/wiki/)).
+
+Any environment variable starting with `FREESCOUT_` is stripped of that prefix and written into the runtime config:
+
+```yaml
+environment:
+  - FREESCOUT_APP_PROXY=http://proxy.local:3128
+  - FREESCOUT_APP_TRUSTED_PROXIES=10.0.0.0/8
+  - FREESCOUT_APP_X_FRAME_OPTIONS=DENY
+  - FREESCOUT_APP_LOCALE=en
+  - FREESCOUT_APP_TIMEZONE=America/Vancouver
+  - FREESCOUT_MAIL_DRIVER=smtp
+  - FREESCOUT_MAIL_HOST=postfix-relay
+  - FREESCOUT_MAIL_PORT=25
+  - FREESCOUT_DB_PGSQL_SSL_MODE=require
+```
+
+becomes the following lines in  (`/data/config/config` | `/www/html/.env`:
+
+```dotenv
+APP_PROXY=http://proxy.local:3128
+APP_TRUSTED_PROXIES=10.0.0.0/8
+APP_X_FRAME_OPTIONS=DENY
+APP_LOCALE=en
+APP_TIMEZONE=America/Vancouver
+MAIL_DRIVER=smtp
+MAIL_HOST=postfix-relay
+MAIL_PORT=25
+DB_PGSQL_SSL_MODE=require
+```
+
+> Three special values delete the matching `.env` line: `FREESCOUT_FOO=unset`, `FREESCOUT_FOO=null`, `FREESCOUT_FOO=`
+>
+> Docker secrets: any `FREESCOUT_<KEY>_FILE=/run/secrets/x` is resolved into `FREESCOUT_<KEY>=<contents>` before passthrough.
+
+#### Scheduler
+
+FreeScout requires `php artisan schedule:run` to fire once per minute for mail fetching, queue dispatching, and report digests. This is an alternative to the in place cron service. Most people will not want this enabled. It is here for edge cases.
+
+| Parameter                    | Description                        | Default |
+| ---------------------------- | ---------------------------------- | ------- |
+| `ENABLE_FREESCOUT_SCHEDULER` | Toggle the in-container scheduler. | `FALSE` |
 
 ### Networking
 
@@ -193,43 +201,27 @@ The following ports are exposed.
 
 ### Shell Access
 
-For debugging and maintenance purposes you may want access the containers shell.
+For debugging and maintenance, `bash` and `sh` are available in the container. An `artisan` shell function is preinstalled and runs as the nginx user against `/www/html/artisan`.
 
-``bash
-docker exec -it (whatever your container name is) bash
-``
+```bash
+docker exec -it freescout-app bash
+artisan tinker
+```
 
-## Support
+## Support & Maintenance
 
-These images were built to serve a specific need in a production environment and gradually have had more functionality added based on requests from the community.
-
-### Usage
-
-* The [Discussions board](../../discussions) is a great place for working with the community on tips and tricks of using this image.
-
-* [Sponsor me](https://tiredofit.ca/sponsor) for personalized support
-
-### Bugfixes
-
-* Please, submit a [Bug Report](issues/new) if something isn't working as expected. I'll do my best to issue a fix in short order.
-
-### Feature Requests
-
-* Feel free to submit a feature request, however there is no guarantee that it will be added, or at what timeline.
-
-* [Sponsor me](https://tiredofit.ca/sponsor) regarding development of features.
-
-### Updates
-
-* Best effort to track upstream changes, More priority if I am actively using the image in a production environment.
-
-* [Sponsor me](https://tiredofit.ca/sponsor) for up to date releases.
+* For community help, tips, and discussions, visit the [Discussions board](/discussions).
+* For personalized support or a support agreement, see [Nfrastack Support](https://nfrastack.com/).
+* To report bugs, submit a [Bug Report](issues/new). Usage questions will be closed as not-a-bug.
+* Feature requests are welcome but not guaranteed.
+* Updates are best-effort, with priority given to active production use and support agreements.
 
 ## License
 
-MIT. See [LICENSE](LICENSE) for more details.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## References
 
 * <https://freescout.net/>
-* <https://github.com/freescout-helpdesk/freescout/wiki/Installation-Guide>
+* <https://github.com/freescout-helpdesk/freescout/wiki>
+* <https://github.com/freescout-helpdesk/freescout/wiki/Configuration>
