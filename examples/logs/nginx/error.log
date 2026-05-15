@@ -1,0 +1,1 @@
+2026/05/15 07:06:26 [error] 20125#20125: *2 open() "/www/html/public/apple-touch-icon-precomposed.png" failed (2: No such file or directory), client: 192.168.65.1, server: _, request: "GET /apple-touch-icon-precomposed.png HTTP/1.1", host: "localhost:8000"

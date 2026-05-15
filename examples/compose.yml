@@ -30,7 +30,7 @@ services:
       - ADMIN_LAST_NAME=Admin           #
       - ADMIN_PASS=freescout            #
 
-      - APP_URL=https://freescout.example.com # Required!
+      - APP_URL=http://localhost:8000 # Required!
 
       # All other FreeScout `.env` config goes through FREESCOUT_ prefix
       #
@@ -94,6 +94,4 @@ services:
 
 networks:
   proxy:
-    external: true
   services:
-    external: true
